@@ -20,36 +20,63 @@ const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
 if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR);
 
 // Middleware to check if the user has joined the channel
-bot.use(async (ctx, next) => {
-  if (ctx.message && ctx.message.chat) {
-    const chatMember = await ctx.telegram.getChatMember(REQUIRED_CHANNEL, ctx.message.chat.id);
-    if (chatMember.status === 'member' || chatMember.status === 'administrator' || chatMember.status === 'creator') {
-      return next();
+bot.start(async (ctx) => {
+  try {
+    const userId = ctx.from.id;
+
+    // Check if the user is a member of the required channel
+    const chatMember = await ctx.telegram.getChatMember(REQUIRED_CHANNEL, userId);
+
+    if (
+      chatMember.status === 'member' || 
+      chatMember.status === 'administrator' || 
+      chatMember.status === 'creator'
+    ) {
+      // If the user is already a member, send a welcome message
+      await ctx.reply('Welcome to the bot! Send me a video, and I will convert it to MP3 for you.');
     } else {
-      return ctx.reply(
-        'Please join our channel to use the bot!',
+      // If the user is not a member, prompt them to join the channel
+      await ctx.reply(
+        'To use this bot, you need to join our Telegram channel first:',
         Markup.inlineKeyboard([
           Markup.button.url('Join Channel', `https://t.me/${REQUIRED_CHANNEL.replace('@', '')}`),
+          Markup.button.callback('I have joined', 'check_membership'),
         ])
       );
     }
-  } else {
-    return next();
+  } catch (err) {
+    if (err.response && err.response.error_code === 400) {
+      console.error('Error: Invalid channel username or bot is not an admin.');
+      ctx.reply('The bot is not configured correctly. Please contact the administrator.');
+    } else {
+      console.error('Unexpected error:', err);
+      ctx.reply('An error occurred. Please try again later.');
+    }
   }
 });
 
-// Start command
-bot.start(async (ctx) => {
-  const chatMember = await ctx.telegram.getChatMember(REQUIRED_CHANNEL, ctx.message.chat.id);
-  if (chatMember.status === 'member' || chatMember.status === 'administrator' || chatMember.status === 'creator') {
-    ctx.reply('Welcome! Send me a video file, and I will convert it to MP3 for you.');
-  } else {
-    ctx.reply(
-      'Please join our channel to use the bot!',
-      Markup.inlineKeyboard([
-        Markup.button.url('Join Channel', `https://t.me/${REQUIRED_CHANNEL.replace('@', '')}`),
-      ])
-    );
+// Handle "I have joined" button callback
+bot.action('check_membership', async (ctx) => {
+  try {
+    const userId = ctx.from.id;
+
+    // Check again if the user has joined the channel
+    const chatMember = await ctx.telegram.getChatMember(REQUIRED_CHANNEL, userId);
+
+    if (
+      chatMember.status === 'member' || 
+      chatMember.status === 'administrator' || 
+      chatMember.status === 'creator'
+    ) {
+      // If the user has joined, send a confirmation message
+      await ctx.editMessageText('Thank you for joining the channel! You can now use the bot. by sending /start');
+    } else {
+      // If the user still hasn't joined, prompt them again
+      await ctx.answerCbQuery('It seems you haven\'t joined the channel yet. Please join and try again.', { show_alert: true });
+    }
+  } catch (err) {
+    console.error('Error checking membership:', err);
+    ctx.reply('An error occurred while verifying your membership. Please try again later.');
   }
 });
 
