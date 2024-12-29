@@ -9,7 +9,7 @@ const path = require('path');
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
 // Telegram Bot Token
-const BOT_TOKEN = '7488987884:AAGUFDQPs9xc-8tqiSG6g3of-N00tf1fC0w';
+const BOT_TOKEN = '7860639551:AAHbDXEsaSFy5uEEni8xRNI_c6HyZTZB_a8';
 const bot = new Telegraf(BOT_TOKEN);
 
 // Channel to join
