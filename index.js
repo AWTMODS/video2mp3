@@ -13,7 +13,7 @@ const BOT_TOKEN = '7860639551:AAHbDXEsaSFy5uEEni8xRNI_c6HyZTZB_a8';
 const bot = new Telegraf(BOT_TOKEN);
 
 // Channel to join
-const REQUIRED_CHANNEL = '@artwebtechofficial';
+const REQUIRED_CHANNEL = '@awt_bots';
 
 // Create a temporary directory for downloads
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
