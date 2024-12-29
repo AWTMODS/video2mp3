@@ -119,7 +119,7 @@ bot.on('video', async (ctx) => {
           // Send the MP3 file back to the user with a caption
           await ctx.replyWithAudio(
             { source: mp3Path },
-            { caption: 'MP3 by @arwebtechofficial' }
+            { caption: 'MP3 by @artwebtechofficial' }
           );
 
           // Cleanup
