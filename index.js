@@ -56,6 +56,9 @@ bot.start(async (ctx) => {
 // Handle video messages
 bot.on('video', async (ctx) => {
   try {
+    // Notify the user that the process has started
+    const processingMessage = await ctx.reply('Processing your video... Please wait.');
+
     // Get the video file ID and file information
     const fileId = ctx.message.video.file_id;
     const fileUrl = await ctx.telegram.getFileLink(fileId);
@@ -78,10 +81,18 @@ bot.on('video', async (ctx) => {
       ffmpeg(videoPath)
         .output(mp3Path)
         .on('end', async () => {
+          // Edit the "Processing..." message to notify completion
+          await ctx.telegram.editMessageText(
+            ctx.chat.id,
+            processingMessage.message_id,
+            undefined,
+            'Conversion complete! Sending your MP3 file...'
+          );
+
           // Send the MP3 file back to the user with a caption
           await ctx.replyWithAudio(
             { source: mp3Path },
-            { caption: 'MP3 by @artwebtechofficial' }
+            { caption: 'MP3 by @arwebtechofficial' }
           );
 
           // Cleanup
@@ -90,14 +101,24 @@ bot.on('video', async (ctx) => {
         })
         .on('error', (err) => {
           console.error('Error converting video:', err);
-          ctx.reply('Failed to convert the video to MP3.');
+          ctx.telegram.editMessageText(
+            ctx.chat.id,
+            processingMessage.message_id,
+            undefined,
+            'An error occurred while converting the video. Please try again.'
+          );
         })
         .run();
     });
 
     videoStream.on('error', (err) => {
       console.error('Error downloading video:', err);
-      ctx.reply('Failed to download the video.');
+      ctx.telegram.editMessageText(
+        ctx.chat.id,
+        processingMessage.message_id,
+        undefined,
+        'Failed to download the video. Please try again.'
+      );
     });
   } catch (error) {
     console.error('Error handling video:', error);
