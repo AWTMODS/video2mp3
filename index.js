@@ -4,6 +4,7 @@ const ffmpegStatic = require('ffmpeg-static');
 const fs = require('fs');
 const axios = require('axios');
 const path = require('path');
+const http = require('http');
 
 // Set ffmpeg path
 ffmpeg.setFfmpegPath(ffmpegStatic);
@@ -151,6 +152,15 @@ bot.on('video', async (ctx) => {
     console.error('Error handling video:', error);
     ctx.reply('An error occurred while processing your request.');
   }
+});
+
+// Open a port for server
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Telegram Bot is running!\n');
+}).listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
 
 // Launch the bot
