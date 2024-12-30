@@ -4,13 +4,12 @@ const ffmpegStatic = require('ffmpeg-static');
 const fs = require('fs');
 const axios = require('axios');
 const path = require('path');
-const http = require('http');
 
 // Set ffmpeg path
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
 // Telegram Bot Token
-const BOT_TOKEN = '7860639551:AAHbDXEsaSFy5uEEni8xRNI_c6HyZTZB_a8';
+const BOT_TOKEN = process.env.BOT_TOKEN || '7860639551:AAHbDXEsaSFy5uEEni8xRNI_c6HyZTZB_a8';
 const bot = new Telegraf(BOT_TOKEN);
 
 // Channel to join
@@ -46,13 +45,8 @@ bot.start(async (ctx) => {
       );
     }
   } catch (err) {
-    if (err.response && err.response.error_code === 400) {
-      console.error('Error: Invalid channel username or bot is not an admin.');
-      ctx.reply('The bot is not configured correctly. Please contact the administrator.');
-    } else {
-      console.error('Unexpected error:', err);
-      ctx.reply('An error occurred. Please try again later.');
-    }
+    console.error('Unexpected error:', err);
+    ctx.reply('An error occurred. Please try again later.');
   }
 });
 
@@ -84,18 +78,14 @@ bot.action('check_membership', async (ctx) => {
 // Handle video messages
 bot.on('video', async (ctx) => {
   try {
-    // Notify the user that the process has started
     const processingMessage = await ctx.reply('Processing your video... Please wait.');
 
-    // Get the video file ID and file information
     const fileId = ctx.message.video.file_id;
     const fileUrl = await ctx.telegram.getFileLink(fileId);
 
-    // Define file paths
     const videoPath = path.join(DOWNLOAD_DIR, `${fileId}.mp4`);
     const mp3Path = path.join(DOWNLOAD_DIR, `awtmp3bot_${fileId}.mp3`);
 
-    // Download the video file
     const response = await axios({
       url: fileUrl,
       method: 'GET',
@@ -105,11 +95,9 @@ bot.on('video', async (ctx) => {
     response.data.pipe(videoStream);
 
     videoStream.on('finish', () => {
-      // Convert video to MP3
       ffmpeg(videoPath)
         .output(mp3Path)
         .on('end', async () => {
-          // Edit the "Processing..." message to notify completion
           await ctx.telegram.editMessageText(
             ctx.chat.id,
             processingMessage.message_id,
@@ -117,13 +105,11 @@ bot.on('video', async (ctx) => {
             'Conversion complete! Sending your MP3 file...'
           );
 
-          // Send the MP3 file back to the user with a caption
           await ctx.replyWithAudio(
             { source: mp3Path },
             { caption: 'MP3 by @artwebtechofficial' }
           );
 
-          // Cleanup
           fs.unlinkSync(videoPath);
           fs.unlinkSync(mp3Path);
         })
@@ -154,20 +140,11 @@ bot.on('video', async (ctx) => {
   }
 });
 
-// Open a port for server
-const PORT = process.env.PORT || 3000;
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Telegram Bot is running!\n');
-}).listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
 // Launch the bot
 bot.launch().then(() => {
   console.log('Bot is running...');
 });
 
-// Enable graceful stop
+// Graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
