@@ -1,9 +1,15 @@
-const { Telegraf, Markup } = require('telegraf');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
-const fs = require('fs');
-const axios = require('axios');
-const path = require('path');
+import { Telegraf, Markup } from 'telegraf';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
+import fs from 'fs';
+import axios from 'axios';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Get the directory name from the current file's URL
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Set ffmpeg path
 ffmpeg.setFfmpegPath(ffmpegStatic);
@@ -38,7 +44,7 @@ bot.start(async (ctx) => {
       // If the user is not a member, prompt them to join the channel
       await ctx.reply(
         'To use this bot, you need to join our Telegram channel first:',
-        Markup.inlineKeyboard([
+        Markup.inlineKeyboard([ 
           Markup.button.url('Join Channel', `https://t.me/${REQUIRED_CHANNEL.replace('@', '')}`),
           Markup.button.callback('I have joined', 'check_membership'),
         ])
@@ -75,12 +81,48 @@ bot.action('check_membership', async (ctx) => {
   }
 });
 
+// Video compression function
+// Video compression function
+const compressVideo = (inputPath, outputPath) => {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .output(outputPath)
+      .videoCodec('libx264') // Use H.264 codec for compression
+      .audioCodec('aac')     // Use AAC audio codec
+      .size('640x360')       // Resize video to reduce size (adjust as needed)
+      .bitrate('500k')       // Set video bitrate (adjust as needed)
+      .on('end', () => {
+        console.log('Video compression completed.');
+        resolve();
+      })
+      .on('error', (err) => {
+        console.error('Error compressing video:', err);
+        reject(err);
+      })
+      .run();
+  });
+};
+
+
+// Handle video messages
 // Handle video messages
 bot.on('video', async (ctx) => {
   try {
+    const fileId = ctx.message.video.file_id;
+
+    // Get video file details to check the size
+    const fileInfo = await ctx.telegram.getFile(fileId);
+    const fileSize = fileInfo.file_size; // in bytes
+
+    // Check if the file size exceeds 50 MB (50 MB = 50 * 1024 * 1024 bytes)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB in bytes
+    if (fileSize > MAX_FILE_SIZE) {
+      await ctx.reply('This bot only supports video files up to 50 MB in size. Please send a smaller video.');
+      return;
+    }
+
     const processingMessage = await ctx.reply('Processing your video... Please wait.');
 
-    const fileId = ctx.message.video.file_id;
     const fileUrl = await ctx.telegram.getFileLink(fileId);
 
     const videoPath = path.join(DOWNLOAD_DIR, `${fileId}.mp4`);
@@ -91,6 +133,7 @@ bot.on('video', async (ctx) => {
       method: 'GET',
       responseType: 'stream',
     });
+
     const videoStream = fs.createWriteStream(videoPath);
     response.data.pipe(videoStream);
 
@@ -107,7 +150,7 @@ bot.on('video', async (ctx) => {
 
           await ctx.replyWithAudio(
             { source: mp3Path },
-            { caption: 'MP3 by @artwebtechofficial' }
+            { caption: 'Converted By \n@awt_video2mp3_bot' }
           );
 
           fs.unlinkSync(videoPath);
@@ -137,6 +180,8 @@ bot.on('video', async (ctx) => {
   } catch (error) {
     console.error('Error handling video:', error);
     ctx.reply('An error occurred while processing your request.');
+     ctx.reply('This bot only supports video files up to 50 MB in size. Please send a smaller video.');
+
   }
 });
 
