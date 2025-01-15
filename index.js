@@ -7,6 +7,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import rateLimit from 'telegraf-ratelimit';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Get the directory name from the current file's URL
 const __filename = fileURLToPath(import.meta.url);
