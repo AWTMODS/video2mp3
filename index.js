@@ -15,7 +15,7 @@ const __dirname = dirname(__filename);
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
 // Telegram Bot Token
-const BOT_TOKEN = process.env.BOT_TOKEN || '7860639551:AAHbDXEsaSFy5uEEni8xRNI_c6HyZTZB_a8';
+const BOT_TOKEN = process.env.BOT_TOKEN ||;
 const bot = new Telegraf(BOT_TOKEN);
 
 // Channel to join
