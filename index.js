@@ -6,6 +6,7 @@ import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import rateLimit from 'telegraf-ratelimit';
 
 // Get the directory name from the current file's URL
 const __filename = fileURLToPath(import.meta.url);
@@ -15,7 +16,13 @@ const __dirname = dirname(__filename);
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
 // Telegram Bot Token
-const BOT_TOKEN = process.env.BOT_TOKEN || '7860639551:AAE1OvrbK940QBnf0Prh6MGaEcX5kImQLAs';
+const BOT_TOKEN = process.env.BOT_TOKEN;
+
+if (!BOT_TOKEN) {
+  console.error('Error: BOT_TOKEN is missing in environment variables.');
+  process.exit(1);
+}
+
 const bot = new Telegraf(BOT_TOKEN);
 
 // Channel to join
@@ -24,6 +31,15 @@ const REQUIRED_CHANNEL = '@awt_bots';
 // Create a temporary directory for downloads
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
 if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR);
+
+// Rate limiting
+const rateLimitConfig = {
+  window: 3000, // 3 seconds
+  limit: 1,
+  onLimitExceeded: (ctx) => ctx.reply('You are sending requests too quickly. Please wait a moment.'),
+};
+
+bot.use(rateLimit(rateLimitConfig));
 
 // Middleware to check if the user has joined the channel
 bot.start(async (ctx) => {
@@ -34,17 +50,15 @@ bot.start(async (ctx) => {
     const chatMember = await ctx.telegram.getChatMember(REQUIRED_CHANNEL, userId);
 
     if (
-      chatMember.status === 'member' || 
-      chatMember.status === 'administrator' || 
+      chatMember.status === 'member' ||
+      chatMember.status === 'administrator' ||
       chatMember.status === 'creator'
     ) {
-      // If the user is already a member, send a welcome message
       await ctx.reply('Welcome to the bot! Send me a video, and I will convert it to MP3 for you.');
     } else {
-      // If the user is not a member, prompt them to join the channel
       await ctx.reply(
         'To use this bot, you need to join our Telegram channel first:',
-        Markup.inlineKeyboard([ 
+        Markup.inlineKeyboard([
           Markup.button.url('Join Channel', `https://t.me/${REQUIRED_CHANNEL.replace('@', '')}`),
           Markup.button.callback('I have joined', 'check_membership'),
         ])
@@ -65,15 +79,18 @@ bot.action('check_membership', async (ctx) => {
     const chatMember = await ctx.telegram.getChatMember(REQUIRED_CHANNEL, userId);
 
     if (
-      chatMember.status === 'member' || 
-      chatMember.status === 'administrator' || 
+      chatMember.status === 'member' ||
+      chatMember.status === 'administrator' ||
       chatMember.status === 'creator'
     ) {
-      // If the user has joined, send a confirmation message
-      await ctx.editMessageText('Thank you for joining the channel! You can now use the bot. by sending /start');
+      await ctx.editMessageText(
+        'Thank you for joining the channel! You can now use the bot by sending /start.'
+      );
     } else {
-      // If the user still hasn't joined, prompt them again
-      await ctx.answerCbQuery('It seems you haven\'t joined the channel yet. Please join and try again.', { show_alert: true });
+      await ctx.answerCbQuery(
+        "It seems you haven't joined the channel yet. Please join and try again.",
+        { show_alert: true }
+      );
     }
   } catch (err) {
     console.error('Error checking membership:', err);
@@ -82,15 +99,14 @@ bot.action('check_membership', async (ctx) => {
 });
 
 // Video compression function
-// Video compression function
 const compressVideo = (inputPath, outputPath) => {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
       .output(outputPath)
-      .videoCodec('libx264') // Use H.264 codec for compression
-      .audioCodec('aac')     // Use AAC audio codec
-      .size('640x360')       // Resize video to reduce size (adjust as needed)
-      .bitrate('500k')       // Set video bitrate (adjust as needed)
+      .videoCodec('libx264')
+      .audioCodec('aac')
+      .size('640x360')
+      .bitrate('500k')
       .on('end', () => {
         console.log('Video compression completed.');
         resolve();
@@ -103,8 +119,6 @@ const compressVideo = (inputPath, outputPath) => {
   });
 };
 
-
-// Handle video messages
 // Handle video messages
 bot.on('video', async (ctx) => {
   try {
@@ -112,27 +126,21 @@ bot.on('video', async (ctx) => {
 
     // Get video file details to check the size
     const fileInfo = await ctx.telegram.getFile(fileId);
-    const fileSize = fileInfo.file_size; // in bytes
+    const fileSize = fileInfo.file_size;
 
-    // Check if the file size exceeds 50 MB (50 MB = 50 * 1024 * 1024 bytes)
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB in bytes
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
     if (fileSize > MAX_FILE_SIZE) {
       await ctx.reply('This bot only supports video files up to 50 MB in size. Please send a smaller video.');
       return;
     }
 
     const processingMessage = await ctx.reply('Processing your video... Please wait.');
-
     const fileUrl = await ctx.telegram.getFileLink(fileId);
 
     const videoPath = path.join(DOWNLOAD_DIR, `${fileId}.mp4`);
     const mp3Path = path.join(DOWNLOAD_DIR, `awtmp3bot_${fileId}.mp3`);
 
-    const response = await axios({
-      url: fileUrl,
-      method: 'GET',
-      responseType: 'stream',
-    });
+    const response = await axios({ url: fileUrl, method: 'GET', responseType: 'stream' });
 
     const videoStream = fs.createWriteStream(videoPath);
     response.data.pipe(videoStream);
@@ -180,8 +188,6 @@ bot.on('video', async (ctx) => {
   } catch (error) {
     console.error('Error handling video:', error);
     ctx.reply('An error occurred while processing your request.');
-     ctx.reply('This bot only supports video files up to 50 MB in size. Please send a smaller video.');
-
   }
 });
 
