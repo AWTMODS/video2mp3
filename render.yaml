@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: video2mp3-telegram-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: REQUIRED_CHANNEL
+        sync: false
+      - key: MAX_FILE_SIZE_MB
+        value: 20
